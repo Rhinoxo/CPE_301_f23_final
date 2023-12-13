@@ -1,47 +1,79 @@
-#define activePIN 2
-#define fanPIN 10
-#define powerLED 8
+#define powerButton 2
+#define fanPIN 9
+
+#define IDLELED 10
+#define RUNLED 11
+#define OFFLED 12
+#define ERRLED 13
+
 #define tempSensor 0
 
-#define rangeHigh 100
-#define rangeLow 25
+#define waterLimit 10
+#define tempLimit 10
 
-bool activeButton = false;
-bool isActive = false;
-int angle = 10;
+int waterLevel = 0;
+int tempLevel = 0;
 
-void readActive(){
-  bool state = digitalRead(activePIN);
-  if(state == activeButton){return;}
-  activeButton = state;
+bool active = false;
 
-  if(!activeButton){return;}
-
-  isActive = !isActive;
-
-  Serial.print("Active: ");
-  Serial.println(isActive);
-}
+enum states {IDLE, RUN, OFF, ERR};
+int state = OFF;
 
 void setup(){
   Serial.begin(9600);
 
-  pinMode(activePIN, INPUT);
   pinMode(fanPIN, OUTPUT);
-  pinMode(powerLED, OUTPUT);
+
+  pinMode(IDLELED, OUTPUT);
+  pinMode(RUNLED, OUTPUT);
+  pinMode(OFFLED, OUTPUT);
+  pinMode(ERRLED, OUTPUT);
+
+  pinMode(powerButton, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(powerButton), powerToggle, RISING);
 }
 
 void loop(){
-  delay(1);
-  
-  readActive();
+  delay(10);
 
-  digitalWrite(powerLED, isActive);
-  digitalWrite(fanPIN, isActive);
-
-  if(!isActive){
-    return;
+  if(state == IDLE || state == RUN){
+    if(waterLevel <= waterLimit){state = ERR;}
+    else if(tempLevel > tempLimit){state = RUN;}
+    else{state = IDLE;}
   }
 
-  int temp = analogRead(tempSensor);
+  bool IDLELEDstate = LOW;
+  bool RUNLEDstate = LOW;
+  bool OFFLEDstate = LOW;
+  bool ERRLEDstate = LOW;
+  bool fanPINstate = LOW;
+
+  switch(state){
+    case IDLE:
+      IDLELEDstate = HIGH;
+      break;
+    case RUN:
+      RUNLEDstate = HIGH;
+      fanPINstate = HIGH;
+      break;
+    case OFF:
+      OFFLEDstate = HIGH;
+      break;
+    case ERR:
+      ERRLEDstate = HIGH;
+      break;
+  }
+
+  digitalWrite(IDLELED, IDLELEDstate);
+  digitalWrite(RUNLED, RUNLEDstate);
+  digitalWrite(OFFLED, OFFLEDstate);
+  digitalWrite(ERRLED, ERRLEDstate);
+  digitalWrite(fanPIN, fanPINstate);
+}
+
+void powerToggle(){
+  active = !active;
+
+  if(active && state != RUN){state = IDLE;}
+  else if(!active){state = OFF;}
 }
