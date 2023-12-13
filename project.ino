@@ -17,7 +17,7 @@
 #define waterSensor 5
 
 #define waterLimit 10
-#define tempLimit 150
+#define tempLimit 21
 
 #include <LiquidCrystal.h>
 
@@ -52,6 +52,7 @@ void loop(){
   lcd.clear();
   
   tempLevel = analogRead(tempSensor);
+  tempLevel = tempLevel * 12 / 25 - 49;
   waterLevel = analogRead(waterSensor);
 
   if(state == IDLE || state == RUN){
@@ -100,7 +101,8 @@ void loop(){
 void powerToggle(){
   active = !active;
 
-  if(active && state != RUN){state = IDLE;}
+  if(active && state == OFF){state = IDLE;}
   else if(!active){state = OFF;}
+  
   loop();
 }
