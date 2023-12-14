@@ -1,4 +1,5 @@
-#define powerButton 2
+#define powerButton 18
+#define resetButton 19
 #define fanPIN 9
 
 #define IDLELED 10
@@ -13,25 +14,38 @@
 #define lcdD6 4
 #define lcdD7 3
 
-#define tempSensor 0
+#define tempSensor 22
 #define waterSensor 5
 
 #define waterLimit 10
 #define tempLimit 21
 
 #include <LiquidCrystal.h>
+#include <DHT.h>
+#include <RTClib.h>
 
 int waterLevel = 0;
-int tempLevel = 0;
+float tempLevel = 0;
 
-bool active = false;
+enum states {IDLE, RUN, OFF, ERR, SETUP};
+String stateNames[4];
 
-enum states {IDLE, RUN, OFF, ERR};
+int lastState = SETUP;
 int state = OFF;
 
 LiquidCrystal lcd(lcdRS, lcdEN, lcdD4, lcdD5, lcdD6, lcdD7);
+DHT dht(tempSensor, DHT11);
+RTC_DS1307 rtc;
 
 void setup(){
+  stateNames[IDLE] = "IDLE";
+  stateNames[RUN] = "RUNNING";
+  stateNames[OFF] = "DISABLED";
+  stateNames[ERR] = "ERROR";
+
+  rtc.begin();
+  rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+
   Serial.begin(9600);
 
   pinMode(fanPIN, OUTPUT);
@@ -43,23 +57,41 @@ void setup(){
   
   lcd.begin(16,2);
 
-  pinMode(powerButton, INPUT_PULLUP);
+  pinMode(powerButton, INPUT);
+  pinMode(resetButton, INPUT);
   attachInterrupt(digitalPinToInterrupt(powerButton), powerToggle, RISING);
+  attachInterrupt(digitalPinToInterrupt(resetButton), resetPress, RISING);
 }
 
 void loop(){
   delay(1000);
-  lcd.clear();
-  
-  tempLevel = analogRead(tempSensor);
-  tempLevel = tempLevel * 12 / 25 - 49;
-  waterLevel = analogRead(waterSensor);
 
   if(state == IDLE || state == RUN){
+    tempLevel = dht.readTemperature(false, true);
+    waterLevel = analogRead(waterSensor);
+
     if(waterLevel <= waterLimit){state = ERR;}
     else if(tempLevel > tempLimit){state = RUN;}
     else{state = IDLE;}
   }
+
+  if(lastState != state){
+    lastState = state;
+    DateTime now = rtc.now();
+
+    Serial.print("[");
+    Serial.print(now.hour());
+    Serial.print(":");
+    Serial.print(now.minute());
+    Serial.print(":");
+    Serial.print(now.second());
+    Serial.print("] ");
+  
+    Serial.println(stateNames[state]);
+  }
+  else{return;}
+
+  lcd.clear();
 
   bool IDLELEDstate = LOW;
   bool RUNLEDstate = LOW;
@@ -99,10 +131,13 @@ void loop(){
 }
 
 void powerToggle(){
-  active = !active;
+  Serial.println("POWER");
+  state = (state == OFF) ? IDLE : OFF;
+  loop();
+}
 
-  if(active && state == OFF){state = IDLE;}
-  else if(!active){state = OFF;}
-  
+void resetPress(){
+  Serial.println("RESET");
+  state = IDLE;
   loop();
 }
