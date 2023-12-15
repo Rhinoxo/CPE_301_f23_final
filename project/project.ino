@@ -64,7 +64,7 @@ void setup(){
 }
 
 void loop(){
-  delay(1000);
+  delay(500);
 
   if(state == IDLE || state == RUN){
     tempLevel = dht.readTemperature(false, true);
@@ -89,9 +89,9 @@ void loop(){
   
     Serial.println(stateNames[state]);
   }
-  else{return;}
 
   lcd.clear();
+  lcd.setCursor(0,0);
 
   bool IDLELEDstate = LOW;
   bool RUNLEDstate = LOW;
@@ -133,11 +133,9 @@ void loop(){
 void powerToggle(){
   Serial.println("POWER");
   state = (state == OFF) ? IDLE : OFF;
-  loop();
 }
 
 void resetPress(){
   Serial.println("RESET");
-  state = IDLE;
-  loop();
+  if(state == ERR){state = IDLE;}
 }
