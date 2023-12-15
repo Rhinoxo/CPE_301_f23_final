@@ -105,9 +105,9 @@ void loop(){
     U0putchar(stateNames[state]);
     U0putchar("\n");
   }
-  else{return;}
 
   lcd.clear();
+  lcd.setCursor(0,0);
 
   bool IDLELEDstate = LOW;
   bool RUNLEDstate = LOW;
@@ -158,7 +158,7 @@ void powerToggle(){
 
 void resetPress(){
   U0putchar("RESET\n");
-  state = IDLE;
+  if(state == ERR){state = IDLE;}
 }
 
 void adc_init()
